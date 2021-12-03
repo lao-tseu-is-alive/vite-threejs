@@ -43,6 +43,8 @@ onMounted(()=>{
   
   const animate = function (time) {
     requestAnimationFrame( animate );
+    const delta = clock.getDelta();
+		if ( mixer ) mixer.update( delta );
     //cube.rotation.x += 0.01;
     cube.rotation.y = time / 1000;
     renderer.render( scene, camera );
