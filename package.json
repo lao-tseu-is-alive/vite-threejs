@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "publish": "rsync -av dist/ myserver.gil.town:/var/www/cada.gil.town/html/"
   },
   "dependencies": {
     "three": "^0.135.0",
