@@ -8,6 +8,7 @@
     "publish": "rsync -av dist/ myserver.gil.town:/var/www/cada.gil.town/html/"
   },
   "dependencies": {
+    "cgil-html-utils": "^2.0.3",
     "three": "^0.135.0",
     "vue": "^3.2.16"
   },

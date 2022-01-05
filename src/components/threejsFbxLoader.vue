@@ -1,28 +1,32 @@
-<style scoped>
+<style type="scss">
 a {
   color: #42b983;
 }
 
 .cglog {
-  text-align: left;
-  background-color: #2c3e50;
-  color: #9effff;
+    text-align: left;
+    background-color: #2c3e50;
+    color: #9effff;
+}
+
+pre {
+  margin: 0.2rem;
+  margin-bottom: 0.1rem !important;
+  font-family: 'Lucida Console', 'Roboto Mono', monospace;
+  font-size: 1rem;
 }
 
 </style>
 
 <template>
-  <h2>{{ msg }}</h2>
-  <div class="row">
-    <div class="two-thirds column">
+  <div class="row" ref="mainRow">
+    <div class="nine columns">
       <div ref="div3d"></div>
     </div>
-    <div class="one-third column">
+    <div class="three columns">
       <div ref="divLog" class="cglog"></div>
     </div>
   </div>
-
-
 </template>
 
 
@@ -53,11 +57,10 @@ import {
 
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
 import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js';
+import {isNullOrUndefined} from "cgil-html-utils";
 
-const fbxModel = 'models/lausanne.fbx';
-
-let CANVAS_WIDTH = 800;
-let CANVAS_HEIGHT = 600;
+const CANVAS_WIDTH = () => Math.max(Math.round((Math.min(window.innerWidth,screen.availWidth) - 100)*0.76), 300) ;
+const CANVAS_HEIGHT = () => (Math.min(window.innerHeight,screen.availHeight) - 100);
 const clock = new Clock();
 let mixer = null;
 let loadProgress = 0;
@@ -68,11 +71,11 @@ const scene = new Scene();
 
 const camera = new PerspectiveCamera(
     50,
-    CANVAS_WIDTH / CANVAS_HEIGHT, 0.1, 1250000);
+    CANVAS_WIDTH() / CANVAS_HEIGHT(), 0.1, 1250000);
 camera.position.set(-55000, 25500, 18000);
 
 const renderer = new WebGLRenderer({antialias: true});
-renderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT);
+renderer.setSize(CANVAS_WIDTH(), CANVAS_HEIGHT());
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.addEventListener('change', function () {
@@ -80,29 +83,34 @@ controls.addEventListener('change', function () {
       `distance : ${controls.getDistance()}, camera position (x:${camera.position.x}, y:${camera.position.y}, z:${camera.position.z}`,
       camera);
 });
-const div3d = ref(null)
-const divLog = ref(null)
+const div3d = ref(null);
+const divLog = ref(null);
+const mainRow = ref(null);
 
 
-defineProps({
-  msg: String
+const props = defineProps({
+  fbxModel: {
+    type: String,
+    default: 'models/fiches.fbx',
+  }
 })
 
 onMounted(() => {
-  console.warn('## onMounted')
+  console.warn('## onMounted threejsFbxLoader.vue')
   const startTime = performance.now()
 
   const cgLog = function (msg, ...args) {
     const endTime = performance.now()
     const timeLapse = (endTime - startTime).toFixed(0);
-    divLog.value.innerHTML = `<p>[${timeLapse}㎳]: ${msg}</p> ${divLog.value.innerHTML}`;
+    if (!isNullOrUndefined(divLog.value)) {
+      divLog.value.innerHTML = `<pre>[${timeLapse}㎳]: ${msg}</pre> ${divLog.value.innerHTML}`;
+    }
     console.log(msg);
     if (args.length > 0) {
       args.map((v) => console.log(v))
     }
   }
 
-  cgLog('div3d : ', div3d.value);
   div3d.value.appendChild(renderer.domElement);
   const hemiLight = new HemisphereLight(0xffffff, 0xaabbaa, 0.80);
   hemiLight.position.set(0, 20000, 0);
@@ -113,37 +121,8 @@ onMounted(() => {
   const dirLight = new DirectionalLight(0xffffff, 0.2);
   dirLight.position.set(-80500, 40500, 65000);
   scene.add(dirLight);
-  /*
-   dirLight.castShadow = true;
-   dirLight.shadow.mapSize.width = 2048;
-   dirLight.shadow.mapSize.height = 2048;
-
-   const d = 500;
-
-   dirLight.shadow.camera.left = -d;
-   dirLight.shadow.camera.right = d;
-   dirLight.shadow.camera.top = d;
-   dirLight.shadow.camera.bottom = -d;
-
-   dirLight.shadow.camera.far = 3500;
-   dirLight.shadow.bias = -0.0001;
-   */
-
   const dirLightHelper = new DirectionalLightHelper(dirLight, 1000);
   scene.add(dirLightHelper);
-  //scene.add(new CameraHelper(dirLight.shadow.camera));
-
-  // ground
-  //const mesh = new Mesh(new PlaneGeometry(2000, 2000), new MeshPhongMaterial({ color: 0x999999, depthWrite: false }));
-  //mesh.rotation.x = - Math.PI / 2;
-  //mesh.receiveShadow = true;
-  //scene.add(mesh);
-
-  /*
-   const grid = new GridHelper(100000, 1000, 0xffff00, 0x000000);
-   grid.material.opacity = 0.45;
-   grid.material.transparent = true;
-   scene.add(grid);*/
 
   const geometry = new CylinderGeometry(500, 500, 10000);
   const material = new MeshPhongMaterial({color: 0x000033});
@@ -152,11 +131,13 @@ onMounted(() => {
 
   // model
   const loader = new FBXLoader();
+  cgLog(`will try to load : ${props.fbxModel}`);
   loader.load(
-      fbxModel,
+      props.fbxModel,
       // called when the resource is loaded
       function (object) {
         cgLog('# FBX Object loaded !')
+        //onResize();
         mixer = new AnimationMixer(object);
 
         //const action = mixer.clipAction(object.animations[0]);
@@ -191,21 +172,28 @@ onMounted(() => {
             loadProgress = currentLoad;
           }
         } else {
-          cgLog(currentLoad + ' % loaded', xhr.loaded);
+          cgLog(currentLoad + ' % loaded');
           loadProgress = currentLoad;
         }
       },
       // called when loading has errors
       function (error) {
-        cgLog(`## An ERROR happened loading : ${fbxModel}. ERROR : ${error} `, error);
+        cgLog(`## An ERROR happened loading : ${props.fbxModel}. ERROR : ${error} `, error);
       }
   ); // end of fbx FBXLoader.load()
 
 
   const onResize = function () {
-    const width = div3d.value.offsetWidth - 2;
-    const height = div3d.value.offsetHeight - 2;
+    let width = CANVAS_WIDTH();
+    let height = CANVAS_HEIGHT();
+    if (!isNullOrUndefined(div3d.value)) {
+      width = div3d.value.offsetWidth - 2;
+      //height = div3d.value.offsetHeight < 600 ? 598 : div3d.value.offsetHeight - 2;
+    }
+    //if (height < 600 ) height = 550;
+    //if (height > (Math.min(window.innerHeight,screen.availHeight) - 300)) height = CANVAS_HEIGHT;
     camera.aspect = width / height;
+    cgLog(`@@onResize w x h : ${width} x ${height}`);
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
     controls.update();
@@ -220,11 +208,9 @@ onMounted(() => {
     renderer.render(scene, camera);
 
   };
-  onResize();
+  //onResize();
   window.addEventListener('resize', onResize);
   animate();
-
-
 })
 
 
